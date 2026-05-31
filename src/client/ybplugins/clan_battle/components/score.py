@@ -6,6 +6,7 @@ from ...ybdata import Clan_challenge, Clan_group, Clan_member
 
 
 FILE_PATH = os.path.dirname(__file__)
+SMALL_TAIL_DMG_THRESHOLD_D = 80000000
 
 def is_Chinese(word):
 	for ch in word:
@@ -42,17 +43,24 @@ def score_table(self, group_id):
 		full_blade = sum(bool(c.boss_health_remain and not c.is_continue) for c in challenges)
 		for info in challenges:
 			score, full_blade, end_blade, small_end_blade = 0, 0, 0, 0
+			level = self._level_by_cycle(info.boss_cycle, group.game_server)
+			is_bc_level = level in (1, 2)
 			if info.boss_health_remain > 0 and not info.is_continue: 
 				full_blade += 1
-				score += 1
+				score += 0.25 if is_bc_level else 1
 			elif info.boss_health_remain == 0 and not info.is_continue: 
 				end_blade += 1
-				if info.challenge_damage >= group.threshold: score += 1
+				if is_bc_level: score += 0.25
+				elif info.challenge_damage >= group.threshold: score += 1
 				else: score += 0.5
 			elif info.is_continue:
 				small_end_blade += 1
-				if info.challenge_damage >= group.threshold: score += 1
-				else: score += 0.5
+				if is_bc_level:	# B/C面的小尾刀统一按0.25分
+					score += 0.25
+				elif level >= 3 and info.challenge_damage < SMALL_TAIL_DMG_THRESHOLD_D:	# D面小尾刀低伤
+					score += 0.5
+				else:
+					score += 1
 			score_member = info.behalf and info.behalf or member.qqid
 			if score_member not in member_score_dict:
 				member_score_dict[score_member] = {
